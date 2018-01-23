@@ -12,7 +12,7 @@ object RFDSTS {
     val conf = new SparkConf().setAppName("RandomForest").setMaster("local[*]")
    val sc = new SparkContext(conf)
     // Load and parse the data file.
-    val trainingData = sc.textFile("/DATA/ECG200/ECG200_TRAIN")
+    val trainingData = sc.textFile("DATA/ECG200/ECG200_TRAIN")
     val parsedtrainingData = trainingData.map { line =>
     val parts = line.split(',').map(_.toDouble)
         LabeledPoint(parts(0), Vectors.dense(parts.tail))
@@ -31,7 +31,7 @@ object RFDSTS {
 // Empty categoricalFeaturesInfo indicates all features are continuous.
 
 
-val model = RandomForestModel.load(sc, "/Model/myRandomForestRegressionModel")
+val model = RandomForestModel.load(sc, "Model/myRandomForestRegressionModel")
 
 // Evaluate model on test instances and compute test error
 val labelAndPreds = parsedtestingDataf.map { point =>

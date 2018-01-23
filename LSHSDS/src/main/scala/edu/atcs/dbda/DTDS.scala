@@ -7,11 +7,14 @@ import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.evaluation.MulticlassMetrics
 import org.apache.spark.streaming._
+import org.apache.spark.rdd.RDD
+
+
 object DTDS {
 	def main(args: Array[String]) {
-		val conf = new SparkConf().setAppName("DecisionTree").setMaster("local[*]").set("spark.driver.allowMultipleContexts", "true");
+		val conf = new SparkConf().setAppName("DecisionTree").setMaster("local[*]")//.set("spark.driver.allowMultipleContexts", "true");
 		val sc = new SparkContext(conf)
-				val ssc = new StreamingContext(sc, Seconds(5))
+				val ssc = new StreamingContext(sc, Seconds(2))
 
 				// Load and parse the data file.
 				// Load and parse the data file...........................
@@ -37,12 +40,51 @@ object DTDS {
 
 
 
-				val testingData = ssc.textFileStream("Test")
-				val parsedtestingData = testingData.map { line =>
+				val testingData = ssc.socketTextStream("localhost", 9998)
+				 val ecgClassifyEvent=testingData.flatMap(_.split("\n"))
+				 
+				 ecgClassifyEvent.foreachRDD{
+	    (rdd:RDD[String],time: Time)=>
+	    //  println("     rrrr"+rdd.count())
+    val requestArray=rdd.map(r=>r.asInstanceOf[String]).collect()
+  //  requestArray.foreach(s=>println("---------"))
+    ///////////////////IMP0 to 96
+    if(requestArray.size>0){
+    //println(requestArray.mkString)
+            val requestRDD=sc.parallelize(requestArray)
+       //     val parsedtestingDataD = requestArray.map(_.toDouble)
+          
+           // parsedtestingDataD.foreach(f=>println(f))
+               
+        //  val parsedtestingDatafin = parsedtestingDataD. 
+            
+        val parsedtestingDatafin = requestRDD.map { line =>
 				val parts = line.split(',').map(_.toDouble)
 				LabeledPoint(parts(0), Vectors.dense(parts.tail))
-		}    
-		val parsedtestingDataf= parsedtestingData.map(f=> if (f.label==(-1.0))LabeledPoint(0,f.features)else LabeledPoint(f.label,f.features))
+//				parts.head
+				}
+           parsedtestingDatafin.take(2).foreach(println)
+         //   parsedtestingDatafin.foreach(f=>println(f))
+            
+            val labelAndPreds = parsedtestingDatafin.map { point =>
+				val prediction = model.predict(point.features)
+				(point.label, prediction)
+		}
+            val turPandN = labelAndPreds.filter(r => r._1 == r._2).count()// / parsedtestingDataf.count()
+            val total=labelAndPreds.count().toDouble
+            val accu=turPandN/total
+				println("TRUE POS ans NEG: "+turPandN+"\tTotal Cases: "+total+"\tAccuracy: "+accu)
+
+				
+            
+
+      
+    }
+        println(s"========================$time====================")
+
+		}
+		
+		    
 
 				// Train a DecisionTree model.
 				//  Empty categoricalFeaturesInfo indicates all features are continuous.
@@ -55,15 +97,9 @@ object DTDS {
 				//val model =DecisionTreeModel.load(sc, "DATA/myDecisionTreeModel")
 
 				// Evaluate model on test instances and compute test error
-				val labelAndPreds = parsedtestingDataf.map { point =>
-				val prediction = model.predict(point.features)
-				(point.label, prediction)
-		}
+				
 
-		val testErr = labelAndPreds.filter(r => r._1 != r._2).count()// / parsedtestingDataf.count()
-				println("-------------------------------------\n"+labelAndPreds)
-
-				labelAndPreds.print()
+		
 				//println("Learned classification forest model:\n" + model.toDebugString)
 
 				ssc.start()             // Start the computation

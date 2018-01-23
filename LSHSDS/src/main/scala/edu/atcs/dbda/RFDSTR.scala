@@ -20,7 +20,7 @@ object RFDSTR {
     val parsedtrainingDataf= parsedtrainingData.map(f=> if (f.label==(-1.0))LabeledPoint(0,f.features)else LabeledPoint(f.label,f.features))
     
   //  parsedtrainingDataf.foreach(f=> println(f.label))
-    val testingData = sc.textFile("/DATA/ECG200/ECG200_TEST")
+    val testingData = sc.textFile("DATA/ECG200/ECG200_TEST")
     val parsedtestingData = testingData.map { line =>
     val parts = line.split(',').map(_.toDouble)
         LabeledPoint(parts(0), Vectors.dense(parts.tail))
@@ -42,7 +42,7 @@ val model = RandomForest.trainClassifier(parsedtrainingDataf, numClasses, catego
   numTrees, featureSubsetStrategy, impurity, maxDepth, maxBins,seed)
 
 // Save and load model
-model.save(sc, "/Model/myRandomForestRegressionModel")
+model.save(sc, "Model/myRandomForestRegressionModel")
 println("Model Trained N stored Succesfully at /Model/myRandomForestRegressionModel")
   }
   }
