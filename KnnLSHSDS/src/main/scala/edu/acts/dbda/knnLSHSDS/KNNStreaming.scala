@@ -17,6 +17,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.linalg.Vectors
+import edu.acts.dbda.KnnLSHSDS.config.Configuration
 
 object KNNStreming {
 
@@ -25,15 +26,16 @@ object KNNStreming {
   def main(args: Array[String]) {
 
 
-	  val conf= new SparkConf().setAppName("KNNecgStreming").setMaster("local[*]");
+	  val conf= new SparkConf().setAppName("KNNECGStreming")//.setMaster("local[*]");
 	  val spark = SparkSession.builder().config(conf).getOrCreate()
 			  val sc = spark.sparkContext
-			  val ssc = new StreamingContext(sc, Seconds(5))
+			  val ssc = new StreamingContext(sc, Seconds(1))
 			  val sqlContext1 = spark.sqlContext 
 			  import sqlContext1.implicits._
 
 
-			  val trainingData = sc.textFile("DATA/ECG200/ECG200_TRAIN")
+			//  val trainingData = sc.textFile("DATA/ECG200/ECG200_TRAIN")
+			  val trainingData = sc.textFile(Configuration.TRAIN_DATA)
 
 			  val parsedtrainingData = trainingData.map { line =>
 			    val parts = line.split(',').map(_.toDouble)
@@ -55,7 +57,7 @@ object KNNStreming {
 			    val model = knn.fit(train)
 			   // println("OKAY till Training")
 			    
-			    val flumeStream = FlumeUtils.createStream(ssc, "127.0.0.1", 9999)
+			    val flumeStream = FlumeUtils.createStream(ssc, "192.168.1.2", 9999)
 			    
 			    val flumeEvents = flumeStream.map(e=>new String(e.event.getBody.array()))
 			    
@@ -83,9 +85,12 @@ object KNNStreming {
 //			    		testingdataset.show(testingdataset.count().toInt,false)
 
 			    		val prediction = model.transform(testingdataset)//(testingdataset)
-
+			    		  
 
 			    		val predictionResults=prediction.select("label","prediction")//.show(predictionResults.count().toInt,false)
+			    		
+			    		predictionResults.rdd.map(_.toString()).saveAsTextFile("/output/Predication")//+time.milliseconds.toString())
+
 			    		
 			    		val class1= predictionResults.selectExpr("SUM(CASE WHEN label = 1 THEN 1.0  END)")
 			    		.collect()
@@ -94,14 +99,14 @@ object KNNStreming {
 
 			    		val class0= predictionResults.count()-class1			    		
 
-			    		val evaluator = new MulticlassClassificationEvaluator()
-			        .setLabelCol("label")
-			        .setPredictionCol("prediction")
-			    		.setMetricName("accuracy")
+//			    		val evaluator = new MulticlassClassificationEvaluator()
+//			        .setLabelCol("label")
+//			        .setPredictionCol("prediction")
+//			    		.setMetricName("accuracy")
+//			    		
+//			    		val accuracy = evaluator.evaluate(predictionResults)
 			    		
-			    		val accuracy = evaluator.evaluate(predictionResults)
-			    		
-			    		println("================================================\nAccuracy :"+accuracy*100)
+			    		println("================================================")//Accuracy :"+accuracy*100)
 			    		println("Total Instance Classified       :"+prediction.count())
 			    		println("Instance Classifiled to class:1 :"+class1)
 			    		println("Instance Classifiled to class:0 :"+class0)
